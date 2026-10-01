@@ -27,12 +27,27 @@
         "location": "subreddit",
         "forUserType": "moderator",
         "endpoint": "/internal/menu/create-weekly-megathread"
+      },
+      {
+        "label": "Post as bot",
+        "description": "Creates a post as the bot on its own profile or to the installed subreddit.",
+        "location": "subreddit",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/manual-post"
+      },
+      {
+        "label": "Send test notification",
+        "description": "Sends a test notification from our automated moderation system. Please ensure your chat requests are enabled.",
+        "location": "subreddit",
+        "forUserType": "user",
+        "endpoint": "/internal/menu/send-test-message" 
       }
     ]
   },
   "forms": {
     "mopComment": "/internal/form/mop-comment-submit",
-    "mopPost": "/internal/form/mop-post-submit"
+    "mopPost": "/internal/form/mop-post-submit",
+    "manualPost": "/internal/form/manual-post"
   },
   "triggers": {
     "onAppInstall": "/internal/triggers/on-app-install",

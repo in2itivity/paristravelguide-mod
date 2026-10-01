@@ -76,6 +76,7 @@ export async function handleCommentSubmitBannedWords(
   const comment = await reddit.getCommentById(asT1(commentId));
   if (!comment.removed) {
     await comment.remove();
+    await comment.addRemovalNote({reasonId: "Contains banned word", modNote: "Removed word"});
   }
 
   // Notify the user with a concrete reason.

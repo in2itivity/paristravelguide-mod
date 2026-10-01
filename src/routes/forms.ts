@@ -30,3 +30,10 @@ forms.post('/mop-post-submit', async (c) => {
   // Return UI response consumed by Reddit client.
   return c.json<UiResponse>(response, 200);
 });
+
+forms.post('/manual-post', async (c) => {
+  // Parse submitted form values into typed payload.
+  
+  // Return UI response consumed by Reddit client.
+  return c.json<UiResponse>(response, 200);
+});
