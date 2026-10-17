@@ -4,7 +4,7 @@ import type {
   SettingsValidationResponse,
 } from '@devvit/web/shared';
 import { validateKeywordVoteKeywords } from '../features/keyword-votes/settings.js';
-import { validateBannedWords } from '../features/banned-words/settings.js';
+import { validateBannedWords, validateRemovalReason } from '../features/banned-words/settings.js';
 import {
   validateWeeklyMegathreadBody,
   validateWeeklyMegathreadTitle,
@@ -22,6 +22,13 @@ settingsRoutes.post('/validate-keyword-vote-keywords', async (c) => {
     validateKeywordVoteKeywords(request),
     200
   );
+});
+
+settingsRoutes.post('/validate-removal-reason', async (c) => {
+  // Parse incoming value payload from settings UI.
+  const request = await c.req.json<SettingsValidationRequest<string>>();
+  // Reuse feature-level validator for consistent rules.
+  return c.json<SettingsValidationResponse>(await validateRemovalReason(request), 200);
 });
 
 settingsRoutes.post('/validate-banned-words-list', async (c) => {

@@ -3,10 +3,13 @@ import type {
   SettingsValidationRequest,
   SettingsValidationResponse,
 } from '@devvit/web/shared';
+import { findRemovalReason } from './triggers.js'
+
 
 export type BannedWordsSettings = {
   enabled: boolean;
   words: string[];
+  removalReasonName: string;
 };
 
 // Parse a moderator-provided CSV/newline list into canonical values used for matching.
@@ -32,11 +35,14 @@ export async function getBannedWordsSettings(): Promise<BannedWordsSettings> {
   const enabled = Boolean(await settings.get<boolean>('bannedWordsEnabled'));
   // Raw list entered by moderators in settings UI.
   const raw = await settings.get<string>('bannedWordsList');
+  // Name of removal reason to use for the removal
+  const removalReasonName = String(await settings.get<string>('automatedRemovalReason'));
 
   return {
     enabled,
     // Always return parsed/canonical values to callers.
     words: parseBannedWords(raw),
+    removalReasonName
   };
 }
 
@@ -55,4 +61,19 @@ export function validateBannedWords(
 
   // Validation passed.
   return { success: true };
+}
+
+export async function validateRemovalReason(request: SettingsValidationRequest<string>): Promise<SettingsValidationResponse> {
+  if (!request.value)
+    return { success: true };
+
+  // Determine whether a removal reason exists with the specified value
+  if (await findRemovalReason(request.value)) {
+    return { success: true };
+  } else {
+    return {
+      success: false,
+      error: "No removal reason with this title was found on the subreddit."
+    };
+  }
 }

@@ -1,4 +1,4 @@
-import { reddit } from '@devvit/web/server';
+import { reddit, RemovalReason } from '@devvit/web/server';
 import type {
   OnCommentSubmitRequest,
   OnPostSubmitRequest,
@@ -32,9 +32,10 @@ async function isSubredditModerator(
   return modPermissions.length > 0;
 }
 
-async function sendRemovalModmail(
+async function sendRemovalMessage(
   subredditName: string | undefined,
   authorName: string | undefined,
+	commentUrl: string,
   contentType: 'comment' | 'post',
   matchedWord: string
 ): Promise<void> {
@@ -42,20 +43,38 @@ async function sendRemovalModmail(
   if (!subredditName || !authorName || authorName === '[deleted]') return;
 
   // Create a user-facing modmail conversation that explains removal cause.
-  await reddit.modMail.createConversation({
-    subredditName,
-    subject: `Your ${contentType} was removed in r/${subredditName}`,
-    body: `Your ${contentType} was removed because it contains a banned word or phrase: "${matchedWord}".`,
-    to: `u/${authorName}`,
-    isAuthorHidden: true,
+  await reddit.sendPrivateMessage({
+    subject: `${contentType.charAt(0).toUpperCase() + contentType.slice(1)} removed on r/${subredditName}`,
+    text: `
+Your recent ${contentType} on r/${subredditName} has failed our automated checks and has been removed:
+
+* Your ${contentType} contains a banned word: "${matchedWord}". Please remove it before you submit your next comment.
+
+[**Link to the removed ${contentType}**](${commentUrl})
+		`,
+    to: `${authorName}`,    
   });
+}
+
+export async function findRemovalReason(searchTitle: string): Promise<string> {
+	if (!searchTitle)
+		return '';
+
+	// Find a removal reason with the matching title
+	const reasons: RemovalReason[] = await (await reddit.getCurrentSubreddit()).getRemovalReasons();
+	for (const reason of reasons) {
+    if (reason.title == searchTitle) {
+			return reason.id;
+		}
+  }
+	return '';
 }
 
 export async function handleCommentSubmitBannedWords(
   input: OnCommentSubmitRequest
 ): Promise<void> {
   // Read current subreddit settings every run so behavior updates immediately.
-  const { enabled, words } = await getBannedWordsSettings();
+  const { enabled, words, removalReasonName } = await getBannedWordsSettings();
   // Fast exit when disabled or empty list.
   if (!enabled || words.length === 0) return;
 
@@ -72,17 +91,20 @@ export async function handleCommentSubmitBannedWords(
   const matchedWord = findMatchedBannedWord(commentBody, words);
   if (!matchedWord) return;
 
+  const removalReasonId: string = await findRemovalReason(removalReasonName);
+
   // Fetch and remove the comment only when needed.
   const comment = await reddit.getCommentById(asT1(commentId));
   if (!comment.removed) {
     await comment.remove();
-    await comment.addRemovalNote({reasonId: "Contains banned word", modNote: "Removed word"});
+		await comment.addRemovalNote({reasonId: removalReasonId, modNote: "Contains banned word"});
   }
 
   // Notify the user with a concrete reason.
-  await sendRemovalModmail(
+  await sendRemovalMessage(
     input.subreddit?.name,
     input.author?.name,
+		comment.url,
     'comment',
     matchedWord
   );
@@ -114,9 +136,10 @@ export async function handlePostSubmitBannedWords(
   }
 
   // Send a user-visible explanation through modmail.
-  await sendRemovalModmail(
+  await sendRemovalMessage(
     input.subreddit?.name,
     input.author?.name,
+		post.url,
     'post',
     matchedWord
   );

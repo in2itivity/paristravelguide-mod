@@ -65,6 +65,12 @@
   },
   "settings": {
     "subreddit": {
+      "automatedRemovalReason": {
+        "type": "string",
+        "label": "Automated removal reason",
+        "helpText": "Title of removal reason to add when removing content. Leave blank to skip adding a removal reason.",
+        "validationEndpoint": "/internal/settings/validate-removal-reason"
+      },
       "keywordVotesEnabled": {
         "type": "boolean",
         "label": "Enable keyword vote tally comments",
