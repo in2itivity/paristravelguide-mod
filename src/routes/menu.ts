@@ -3,7 +3,9 @@ import type { MenuItemRequest, UiResponse } from '@devvit/web/shared';
 import { buildNukeForm } from '../features/mop/menu.js';
 import { createWeeklyMegathreadManual } from '../features/scheduler-megathread/handlers.js';
 import { sendTestChatMessage } from '../features/test-message/handlers.js';
-import { buildManualPostForm } from '../features/manual-post/menu.js'
+import { buildManualPostForm } from '../features/manual-post/menu.js';
+import { buildPostFlairLockForm } from '../features/post-flair-lock/menu.js';
+import { handlePostFlairLockCheck, handlePostFlairLockPrint } from '../features/post-flair-lock/flair-lock.js';
 
 // Router for menu actions declared in devvit.json/menu.items.
 export const menu = new Hono();
@@ -37,14 +39,14 @@ menu.post('/mop-post', async (c) => {
   );
 });
 
-menu.post('/manual-post', (c) => {
+menu.post('/manual-post', async (c) => {
   // Parse menu payload to access selected target id.
   // const request = await c.req.json<MenuItemRequest>();
   return c.json<UiResponse>(
     {
       showForm: {
         name: 'manualPost',
-        form: buildManualPostForm(),
+        form: await buildManualPostForm(),
       },
     },
     200
@@ -78,5 +80,42 @@ menu.post('/send-test-message', async (c) => {
       showToast: result.message,
     },
     200
+  );
+});
+
+menu.post('/set-flair-lock', async (c) => {
+  const request = await c.req.json<MenuItemRequest>();
+
+  return c.json<UiResponse>(
+    {
+      showForm: {
+        name: 'postFlairLock',
+        form: await buildPostFlairLockForm(request.targetId)
+      }
+    }
+  );
+});
+
+menu.post('/print-flair-lock', async (c) => {
+  const request = await c.req.json<MenuItemRequest>();
+
+  const result = await handlePostFlairLockPrint(request.targetId);
+
+  return c.json<UiResponse>(
+    {
+      showToast: `${result.success ? 'Success' : 'Failed'}: ${result.message}`
+    }
+  );
+});
+
+menu.post('/get-flair-lock', async (c) => {
+  const request = await c.req.json<MenuItemRequest>();
+
+  const result = await handlePostFlairLockCheck(request.targetId);
+
+  return c.json<UiResponse>(
+    {
+      showToast: result.message
+    }
   );
 });

@@ -29,6 +29,27 @@
         "endpoint": "/internal/menu/create-weekly-megathread"
       },
       {
+        "label": "Manage post flair lock",
+        "description": "Manage post flair locking for this post.",
+        "location": "post",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/set-flair-lock"
+      },
+      {
+        "label": "Print post flair lock details",
+        "description": "Output post flair lock details for this post in a private chat message.",
+        "location": "post",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/print-flair-lock"
+      },
+      {
+        "label": "Check post flair restrictions",
+        "description": "Check if this post's flair can be changed.",
+        "location": "post",
+        "forUserType": "user",
+        "endpoint": "/internal/menu/get-flair-lock"
+      },
+      {
         "label": "Post as bot",
         "description": "Creates a post as the bot on its own profile or to the installed subreddit.",
         "location": "subreddit",
@@ -47,13 +68,15 @@
   "forms": {
     "mopComment": "/internal/form/mop-comment-submit",
     "mopPost": "/internal/form/mop-post-submit",
-    "manualPost": "/internal/form/manual-post"
+    "manualPost": "/internal/form/manual-post",
+    "postFlairLock": "/internal/form/post-flair-lock"
   },
   "triggers": {
     "onAppInstall": "/internal/triggers/on-app-install",
     "onCommentSubmit": "/internal/triggers/on-comment-submit",
     "onPostCreate": "/internal/triggers/on-post-create",
-    "onPostSubmit": "/internal/triggers/on-post-submit"
+    "onPostSubmit": "/internal/triggers/on-post-submit",
+    "onPostFlairUpdate": "/internal/triggers/on-post-flair-update"
   },
   "scheduler": {
     "tasks": {

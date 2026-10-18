@@ -3,6 +3,7 @@ import type {
   OnAppInstallRequest,
   OnCommentSubmitRequest,
   OnPostCreateRequest,
+  OnPostFlairUpdateRequest,
   OnPostSubmitRequest,
   TriggerResponse,
 } from '@devvit/web/shared';
@@ -16,6 +17,7 @@ import {
   handleCommentSubmitFlairUpdater,
   handlePostSubmitFlairUpdater,
 } from '../features/flair-updater/triggers.js';
+import { handlePostFlairUpdateFlairLock } from '../features/post-flair-lock/triggers.js';
 
 // Router for trigger endpoints declared in devvit.json/triggers.
 export const triggers = new Hono();
@@ -87,5 +89,19 @@ triggers.post('/on-post-submit', async (c) => {
     }),
   ]);
 
+  return c.json<TriggerResponse>({}, 200);
+});
+
+triggers.post('/on-post-flair-update', async (c) => {
+  // Parse post-flair-update trigger payload.
+  // Run all interested feature handlers in parallel and isolate failures.
+
+  const input = await c.req.json<OnPostFlairUpdateRequest>();
+
+  // Run all interested feature handlers in parallel and isolate failures.
+  await runFeatureSafely('post-flair-lock:on-post-flair-update', async () => {
+    await handlePostFlairUpdateFlairLock(input);
+  });
+  
   return c.json<TriggerResponse>({}, 200);
 });
