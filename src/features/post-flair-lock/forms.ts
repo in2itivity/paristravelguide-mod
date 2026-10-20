@@ -32,6 +32,6 @@ export async function handlePostFlairLockUpdate(values: PostFlairLockFormValues)
   );
 
 	return {
-		showToast: `${result.success ? 'Success' : 'Failed'}: ${result.message}`
+		showToast: `${result.message}`
 	};
 }

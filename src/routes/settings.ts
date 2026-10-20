@@ -9,6 +9,7 @@ import {
   validateWeeklyMegathreadBody,
   validateWeeklyMegathreadTitle,
 } from '../features/scheduler-megathread/settings.js';
+import { validatePostFlairLockProtectedUUIDList } from '../features/post-flair-lock/settings.js';
 
 // Router for optional server-side settings validation endpoints.
 // Validation endpoints are referenced from devvit.json setting definitions.
@@ -55,5 +56,13 @@ settingsRoutes.post('/validate-weekly-megathread-body', async (c) => {
   return c.json<SettingsValidationResponse>(
     validateWeeklyMegathreadBody(request),
     200
+  );
+});
+
+settingsRoutes.post('/validate-post-flair-lock-protected-UUID-list', async (c) => {
+  const request = await c.req.json<SettingsValidationRequest<string>>();
+  
+  return c.json<SettingsValidationResponse>(
+    await validatePostFlairLockProtectedUUIDList(request), 200
   );
 });

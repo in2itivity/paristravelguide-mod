@@ -1,4 +1,4 @@
-import { redis, reddit } from '@devvit/web/server';
+import { redis } from '@devvit/web/server';
 import type { T3 } from '@devvit/web/shared';
 import { type PostFlairManualLockRecord, type FlairRecord } from './flair-lock.js'
 
@@ -15,17 +15,15 @@ function keyForManualLockRecord(postId: T3): string {
 }
 
 
-export async function storeCurrentFlair(postId: T3): Promise<void> {
-	const post = await reddit.getPostById(postId);
-	const flairRecord: FlairRecord = {
-		flairTemplateId: post.flair?.templateId ?? '',
-		flairText: post.flair?.text ?? ''
-	};
-
-	await redis.hSet(keyForFlairState(postId), flairRecord);
+export async function storeFlairRecord(postId: T3, flairRecord: FlairRecord): Promise<void> {
+	await redis.hSet(keyForFlairState(postId), {
+		flairTemplateId: flairRecord.flairTemplateId ?? '',
+		flairText: flairRecord.flairText ?? '',
+		establishedDate: String(flairRecord.establishedDate)
+	});
 }
 
-export async function getLockedFlairData(postId: T3): Promise<FlairRecord> {
+export async function getFlairRecord(postId: T3): Promise<FlairRecord> {
 	const record = await redis.hGetAll(keyForFlairState(postId));
 
 	const flairRecord: FlairRecord = {
@@ -43,9 +41,10 @@ export async function deleteCurrentFlair(postId: T3): Promise<void> {
 export async function setModLock(postId: T3, lockRecord: PostFlairManualLockRecord): Promise<void> {
 	await redis.hSet(keyForManualLockRecord(postId), {
 		lockState: String(lockRecord.lockState),
+		notificationEnabled: String(lockRecord.notificationEnabled),
 		createdBy: lockRecord.createdBy,
 		createdAt: String(lockRecord.createdAt),
-		modNote: lockRecord.modNote
+		privateModNote: lockRecord.privateModNote
 	});
 }
 
@@ -59,9 +58,10 @@ export async function getModLock(postId: T3): Promise<PostFlairManualLockRecord>
 
 	const lockRecord: PostFlairManualLockRecord = {
 		lockState: 'lockState' in record ? (record['lockState'] == 'true') : null,
+		notificationEnabled: 'notificationEnabled' in record ? (record['notificationEnabled'] == 'true') : true,
 		createdBy: record['createdBy'] ?? '',
 		createdAt: Number(record['createdAt']),
-		modNote: record['modNote'] ?? ''
+		privateModNote: record['privateModNote'] ?? ''
 	};
 
 	return lockRecord;

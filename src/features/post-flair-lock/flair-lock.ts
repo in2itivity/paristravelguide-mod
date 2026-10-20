@@ -1,4 +1,4 @@
-import type {
+import {
   ModeratorPermission,
   Post,
   User
@@ -7,23 +7,50 @@ import type {
 import { reddit } from '@devvit/web/server';
 import { isT3 } from '@devvit/web/shared';
 import type { T3, T5 } from '@devvit/web/shared';
-import { deleteCurrentFlair, delModLock, getModLock, setModLock, storeCurrentFlair } from './storage.js';
+import { deleteCurrentFlair, delModLock, getModLock, setModLock, storeFlairRecord, getFlairRecord } from './storage.js';
+import { getPostFlairLockSettings, type PostFlairLockSettings } from './settings.js';
+
+
+export type FlairLockCheckResult = {
+	lockState: true,
+	reason: 'mod',
+	notificationEnabled: boolean,
+	// privateModNote: string
+	// publicModNote: string
+} | {
+	lockState: true,
+	reason: 'global'
+} | {
+	lockState: false,
+	reason: 'mod' | 'global',
+	gracePeriod: false
+} | {
+	lockState: false,
+	reason: 'global',
+	gracePeriod: true,
+	graceMinutesLeft: number
+};
 
 export type PostFlairManualLockRecord = {
 	lockState: boolean | null,
 	createdBy: string,
 	createdAt: number,
-	modNote: string
+	notificationEnabled: boolean,
+	privateModNote: string,
+	// publicModNote: string
 };
 
 export type FlairRecord = {
 	flairTemplateId?: string,
-	flairText?: string
+	flairText?: string,
+	establishedDate?: number
 };
 
 export type FlairLockOperationProps = {
   lockState: string,
-	modNote: string
+	notificationEnabled: boolean,
+	privateModNote: string,
+	// publicModNote: string,
   postId: T3;
   subredditId: T5;
 };
@@ -46,13 +73,13 @@ function canManageFlair(permissions: readonly ModeratorPermission[]): boolean {
 }
 
 // Determine the correct toast message
-function successResult(oldLockState: boolean | null, newLockState: boolean | null, modNoteUpdated: boolean, messageSent: boolean): FlairLockOperationResult {
+function successResult(oldLockState: boolean | null, newLockState: boolean | null, detailsUpdated: boolean, messageSent: boolean): FlairLockOperationResult {
 	let message: string;
 	let success: boolean = true;
 	
 	if (oldLockState == newLockState) {
-		if (modNoteUpdated)
-			message = "Mod note updated";
+		if (detailsUpdated)
+			message = "Flair lock details updated";
 		else {
 			message = "No changes made";
 			success = false;
@@ -122,6 +149,72 @@ export async function verifyFlairModerationPermissions(
 	};
 }
 
+async function checkGlobalFlairLock(postId: T3, settings: PostFlairLockSettings): Promise<boolean> {
+	const post: Post = await reddit.getPostById(postId);
+
+	if (!post.flair?.templateId) {
+		return settings.protectEmpty;
+	}
+	return settings.protectedFlairUUIDs.has(post.flair?.templateId);
+}
+
+async function checkGlobalGracePeriod(postId: T3, settings: PostFlairLockSettings): Promise<number> {
+	const record = await getFlairRecord(postId);
+
+	if (!record.establishedDate) return -1;
+
+	return settings.gracePeriodLength - (Date.now() - record.establishedDate) / 60000;
+}
+
+// Check a post to see if its flair is locked or unlocked.
+export async function checkPostFlairLockStatus(postId: T3): Promise<FlairLockCheckResult> {
+	
+	// If there is a mod lock, return its information
+	const modLockRecord: PostFlairManualLockRecord = await getModLock(postId);	
+	if (modLockRecord.lockState != null) {
+		if (modLockRecord.lockState) {
+			return {
+				lockState: true,
+				reason: 'mod',
+				notificationEnabled: modLockRecord.notificationEnabled,
+			};
+		} else {
+			return {
+				lockState: false,
+				reason: 'mod',
+				gracePeriod: false
+			};
+		}
+	}
+
+	const featureSettings: PostFlairLockSettings = await getPostFlairLockSettings();
+
+	// If there is no global lock, return false
+	if (!await checkGlobalFlairLock(postId, featureSettings)) {
+		return {
+			lockState: false,
+			reason: 'global',
+			gracePeriod: false
+		};
+	}
+
+	// If we get there then there is a global lock; now check if within grace period
+	const graceMinsLeft = await checkGlobalGracePeriod(postId, featureSettings);
+	if (graceMinsLeft >= 0) {
+		return {
+			lockState: false,
+			reason: 'global',
+			gracePeriod: true,
+			graceMinutesLeft: graceMinsLeft
+		};
+	}
+	
+	return {
+		lockState: true,
+		reason: 'global'
+	};
+}
+
 export async function handlePostFlairLockCheck(postId: string): Promise<{ message: string }> {
 	if (!isT3(postId))
 		return { message: "Error: An unexpected error occurred" };
@@ -142,16 +235,29 @@ export async function handlePostFlairLockCheck(postId: string): Promise<{ messag
 			};
 	}
   
-	const modLockRecord = await getModLock(postId);
+	const lockCheck = await checkPostFlairLockStatus(postId);
 
-	if (modLockRecord.lockState) {
-		return {
-			message: "This post's flair has been locked by the moderators"
-		};
+	// Return the appropriate message based on the result
+	if (lockCheck.lockState) {
+		if (lockCheck.reason == 'mod') {
+			return {
+				message: "This post's flair has been locked by a subreddit moderator"
+			}
+		} else {
+			return {
+				message: "This post's flair is locked due to a subreddit-wide rule"
+			}
+		}
 	} else {
-		return {
-			message: "No post flair restrictions found on this post"
-		};
+		if (lockCheck.gracePeriod) {
+			return {
+				message: `This post's flair will be locked in ${lockCheck.graceMinutesLeft} minutes`
+			}
+		} else {
+			return {
+				message: "No post flair restrictions found for this post"
+			}
+		}
 	}
 }
 
@@ -180,18 +286,27 @@ export async function handlePostFlairLockPrint(postId: string): Promise<FlairLoc
 
 	if (modLockRecord.lockState != null) {
 		try {
+			const date = new Intl.DateTimeFormat('en-US', { dateStyle: 'short', timeStyle: 'short' }).format(modLockRecord.createdAt);
+			const messageText = modLockRecord.privateModNote ? `Here are the requested post flair lock details:
+				
+* **Post:** [${resolved.post.title}](${resolved.post.url})
+* **Flair lock state:** ${modLockRecord.lockState ? "Locked" : "Unlocked"}
+* **Notification enabled:** ${modLockRecord.notificationEnabled ? "Yes" : "No"}
+* **Created by:** ${modLockRecord.createdBy}
+* **Created at:** ${date}
+
+**Mod note:** ${modLockRecord.privateModNote}` : `Here are the requested post flair lock details:
+				
+* **Post:** [${resolved.post.title}](${resolved.post.url})
+* **Flair lock state:** ${modLockRecord.lockState ? "Locked" : "Unlocked"}
+* **Notification enabled:** ${modLockRecord.notificationEnabled ? "Yes" : "No"}
+* **Created by:** ${modLockRecord.createdBy}
+* **Created at:** ${date}`;
+
 			await reddit.sendPrivateMessage({
 				to: resolved.user.username,
 				subject: "Post flair lock details",
-				text: `Here are the requested post flair lock details:
-				
-**Post:** [${resolved.post.title}](${resolved.post.url})
-				
-**Flair lock state:** ${modLockRecord.lockState ? "Locked" : "Unlocked"}
-
-**Created by:** ${modLockRecord.createdBy}
-
-**Mod note:** ${modLockRecord.modNote}`
+				text: messageText
 			});
 		} catch {
 			return {
@@ -229,21 +344,29 @@ export async function handlePostFlairLockChange(
   if (permissionFailure) return permissionFailure;
 
 	const currentLockRecord = await getModLock(props.postId);
-	let modNoteUpdated: boolean = false;
+	const currentFlairRecord = await getFlairRecord(props.postId);
+	let detailsUpdated: boolean = false;
 
 	// Setting case
 	if (props.lockState != 'null') {
-		modNoteUpdated = props.modNote != currentLockRecord.modNote;
+		detailsUpdated = props.privateModNote != currentLockRecord.privateModNote ||
+			props.notificationEnabled != currentLockRecord.notificationEnabled;
 
 		const newModLockRecord: PostFlairManualLockRecord = {
 			lockState: props.lockState == 'true',
-			modNote: props.modNote,
+			privateModNote: props.privateModNote,
+			notificationEnabled: props.notificationEnabled,
 			createdBy: resolved.user.username,
 			createdAt: currentTime
 		};
+
 		await Promise.all([
 			setModLock(props.postId, newModLockRecord),
-			storeCurrentFlair(props.postId)
+			storeFlairRecord(props.postId, {
+				flairTemplateId: resolved.post.flair?.templateId ?? '',
+				flairText: resolved.post.flair?.text ?? '',
+				establishedDate: currentFlairRecord.establishedDate ?? Date.now()
+			})
 		]);
 
 	} else {
@@ -258,6 +381,6 @@ export async function handlePostFlairLockChange(
 	return successResult(
 		currentLockRecord.lockState,
 		props.lockState == 'null' ? null : (props.lockState == 'true'),
-		modNoteUpdated, false
+		detailsUpdated, false
 	);
 }

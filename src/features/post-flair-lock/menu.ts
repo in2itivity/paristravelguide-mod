@@ -47,11 +47,18 @@ export async function buildPostFlairLockForm(targetId: string): Promise<Form> {
 				multiSelect: false
 			},
 			{
+				type: 'boolean',
+				name: 'notificationEnabled',
+				label: "Notify OP if they try to change the post flair",
+				helpText: "Only applicable if post flair lock setting is set to \"Locked\".",
+				defaultValue: modLockRecord?.lockState == true ? modLockRecord.notificationEnabled : true
+			},
+			{
 				type: 'paragraph',
-				name: 'modNote',
+				name: 'privateModNote',
 				label: "Mod note",
 				helpText: "Only saved if post flair lock setting is set to \"Locked\" or \"Unlocked\".",
-				defaultValue: modLockRecord?.modNote ?? "",
+				defaultValue: modLockRecord?.privateModNote ?? "",
 			}
 		],
 		title: "Manage post flair lock"

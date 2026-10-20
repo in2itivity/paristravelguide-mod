@@ -5,8 +5,8 @@ import {
   type OnPostFlairUpdateRequest
 } from '@devvit/web/shared';
 
-import { verifyFlairModerationPermissions } from './flair-lock.js'
-import { getLockedFlairData, getModLock } from './storage.js';
+import { checkPostFlairLockStatus, verifyFlairModerationPermissions } from './flair-lock.js'
+import { getFlairRecord } from './storage.js';
 
 function asT3(id: string): T3 {
   return (id.startsWith('t3_') ? id : `t3_${id}`) as T3;
@@ -19,6 +19,7 @@ function asT2(id: string): T2 {
 async function sendRevertMessage(
 	subredditName: string | undefined,
   authorName: string | undefined,
+	postTitle: string,
 	postUrl: string,
   flairText: string
 ): Promise<void> {
@@ -26,13 +27,15 @@ async function sendRevertMessage(
 
 	await reddit.sendPrivateMessage({
 		to: authorName,
-		subject: `Post flair change reverted on r/${subredditName}`,
+		subject: `Post flair change reverted on r/\ufeff${subredditName}`,
 		text: `
-Sorry, the post flair of [your post on r/${subredditName}](${postUrl}) has been locked by a moderator, and cannot be changed at this time.
+Sorry, the post flair of your post on r/\ufeff${subredditName} has been locked by a moderator, and cannot be changed at this time.
 
-Your post's flair has been reverted to ${flairText}.
+Your post's flair has been reverted to **${flairText}**.
 
 For more information on why your post's flair is locked, please contact the moderators via mod mail.
+
+**Post:** [${postTitle}](${postUrl})
 
 **Note:** Replies to this message will not be monitored.`
 	});
@@ -44,9 +47,9 @@ export async function handlePostFlairUpdateFlairLock(
 	if (!input.author || !input.subreddit?.name || !input.post?.id) 
 		return;
 
-  const modLockRecord = await getModLock(asT3(input.post?.id));
+  const lockStatus = await checkPostFlairLockStatus(asT3(input.post?.id));
 
-	if (!modLockRecord.lockState)
+	if (!lockStatus.lockState)
 		return;
 
 	const author = await reddit.getUserById(asT2(input.author.id));
@@ -65,7 +68,7 @@ export async function handlePostFlairUpdateFlairLock(
 	
 		
 	// Revert flair
-	const flairRecord = await getLockedFlairData(asT3(input.post?.id));
+	const flairRecord = await getFlairRecord(asT3(input.post?.id));
 	if (!flairRecord.flairTemplateId || !flairRecord.flairText)
 		return;
 
@@ -80,10 +83,13 @@ export async function handlePostFlairUpdateFlairLock(
 
 	const postUrl = (await reddit.getPostById(asT3(input.post.id))).url;
 
-	await sendRevertMessage(
-		input.subreddit.name,
-		input.author.name,
-		postUrl,
-		flairRecord.flairText
-	);
+	if (lockStatus.reason == 'mod' && lockStatus.notificationEnabled) {
+		await sendRevertMessage(
+			input.subreddit.name,
+			input.author.name,
+			input.post.title,
+			postUrl,
+			flairRecord.flairText
+		);
+	}
 }

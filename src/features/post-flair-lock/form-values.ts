@@ -1,12 +1,16 @@
 export type PostFlairLockFormValues = {
   targetId?: string,
   lockState?: string,
-  modNote?: string
+  notificationEnabled?: boolean,
+  privateModNote?: string,
+  // publicModNote?: string
 };
 
 export type NormalizedPostFlairLockFormValues = {
 	lockState: string,
-	modNote: string,
+  notificationEnabled: boolean
+	privateModNote: string,
+  // publicModNote: string
 };
 
 export function normalizePostFlairLockFormValues(
@@ -14,7 +18,9 @@ export function normalizePostFlairLockFormValues(
 ): NormalizedPostFlairLockFormValues {
 	return {
 		lockState: values.lockState ?? 'null',
-		modNote: values.modNote ?? ""
+    notificationEnabled: values.notificationEnabled ?? true,
+		privateModNote: values.privateModNote ?? ""
+    // publicModNote: values.publicModNote ?? ""
 	};
 }
 
