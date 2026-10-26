@@ -7,18 +7,22 @@ export type PostFlairLockSettings = {
 	gracePeriodLength: number;
 	messageCooldown: number;
 	protectEmpty: boolean;
+	notifyOnProtectedChange: boolean;
+	sendGraceWarning: boolean;
 };
 
 export async function getPostFlairLockSettings(): Promise<PostFlairLockSettings> {
 	// Fetch settings
-	const rawList = await settings.get<string>('postFlairLock_protectedFlairs');
+	const enableProtected = await settings.get<string>('postFlairLock_enableProtectedFlairs');
+	const rawList = await settings.get<string>('postFlairLock_protectedFlairList');
 	const graceLength = await settings.get<number>('postFlairLock_graceMinutes');
 	const messageCooldown = await settings.get<number>('postFlairLock_messageCooldown');
 	const protectEmpty = await settings.get<boolean>('postFlairLock_protectedEmptyFlair');
-
+	const messageOnProtectedChange = await settings.get<boolean>('postFlairLock_notifyOnProtectedChange');
+	const sendGraceWarning = await settings.get<boolean>('postFlairLock_sendGraceWarning');
 
 	let ids: Set<string> = new Set();
-	if (rawList) {
+	if (rawList && enableProtected) {
 		const idsArray = rawList.split(/\r?\n/).map(id => id.trim());
 		ids = new Set(idsArray);
 	}
@@ -27,7 +31,9 @@ export async function getPostFlairLockSettings(): Promise<PostFlairLockSettings>
 		protectedFlairUUIDs: ids,
 		gracePeriodLength: graceLength ?? 0,
 		messageCooldown: messageCooldown ?? 0,
-		protectEmpty: protectEmpty ?? false
+		protectEmpty: protectEmpty ?? false,
+		notifyOnProtectedChange: messageOnProtectedChange ?? true,
+		sendGraceWarning: sendGraceWarning ?? true
 	}
 }
 

@@ -17,7 +17,7 @@ import {
   handleCommentSubmitFlairUpdater,
   handlePostSubmitFlairUpdater,
 } from '../features/flair-updater/triggers.js';
-import { handlePostFlairUpdateFlairLock } from '../features/post-flair-lock/triggers.js';
+import { handlePostFlairUpdate } from '../features/post-flair-lock/triggers.js';
 
 // Router for trigger endpoints declared in devvit.json/triggers.
 export const triggers = new Hono();
@@ -100,7 +100,7 @@ triggers.post('/on-post-flair-update', async (c) => {
 
   // Run all interested feature handlers in parallel and isolate failures.
   await runFeatureSafely('post-flair-lock:on-post-flair-update', async () => {
-    await handlePostFlairUpdateFlairLock(input);
+    await handlePostFlairUpdate(input);
   });
   
   return c.json<TriggerResponse>({}, 200);

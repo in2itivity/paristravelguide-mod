@@ -1,23 +1,39 @@
-# Devvit Mod Tool Template
+# r/ParisTravelGuide's Custom Moderation App
 
-A template for building Reddit moderation tools using Devvit Web with feature-isolated server modules.  
-Each moderation capability lives in its own folder under `src/features` so developers can remove a feature by deleting its folder and unregistering its route wiring.
+This is a custom moderation app for r/ParisTravelGuide. We've programmed it with features for our specific needs, such as 
 
-## Included Features
+## Feature overview
 
-- **Mop Moderation Tool**: Moderator menu actions to remove/lock comment trees or all comments in a post.
-- **Keyword Vote Tallies**: Configurable `!keyword` vote comments with a sticky tally comment per post.
-- **Banned Words Enforcement**: Auto-removes matching posts/comments and sends a modmail notice to the author; subreddit moderators are exempt.
-- **Weekly Megathread Scheduler**: Posts a recurring weekly megathread on a configurable UTC weekday, plus manual mod-triggered creation.
-- **Flair Updater**: Updates user flair on each post/comment event using Redis-backed counts (`posts: X | comments: Y`).
+Here is an overview of the features of our moderation app.
 
-### Feature Docs
+### Post flair locking
 
-- [Mop README](src/features/mop/README.md)
-- [Keyword Votes README](src/features/keyword-votes/README.md)
-- [Banned Words README](src/features/banned-words/README.md)
-- [Weekly Megathread Scheduler README](src/features/scheduler-megathread/README.md)
-- [Flair Updater README](src/features/flair-updater/README.md)
+This feature allows moderators to lock and unlock a post's flair.
+
+**Manual locking/unlocking:**
+
+* Use the "Set post flair lock" menu action to set a post's flair as manually locked or manually unlocked.
+  * The app records this state with your username, date/time, and you can also a mod note.
+  * By default, OP will be notified if they attempt to change the flair while locked, but you can set this message to be suppressed.
+* Use the "Print post flair lock details" menu action to retrieve information for a manual post flair lock or unlock and print them as a private message.
+
+**Protected flairs:**
+
+* Protected flairs are considered locked by default, and cannot be edited unless a moderator overrides this.
+* Use the app settings to mark post flairs as protected by entering their flair template IDs.
+* Use the app settings to define a grace period. See below for details.
+* Existing posts will not update their flair lock status automatically when adding or removing protected flairs. To force a manual update, run the "Check for post flair restrictions" menu action on the post.
+
+**OP's perspective:**
+
+* If an OP attempts to change a post's flair when it is locked or protected, the flair is reverted automatically and a message is sent to notify them.
+* If a post's flair is unlocked but OP changes the flair to a protected flair, a notification is sent and a grace period begins. After the grace period ends, the flair is locked and can no longer be changed.
+* An OP can use the "Check for post flair restrictions" public menu action to verify a post's flair lock status.
+  * They can see whether the flair is locked by a moderator, locked due to a protected flair, or explicitly unlocked by a moderator. If a grace period is active, they can see the time remaining.
+
+## Notes
+
+* This app outputs notifications to moderators and OPs as chat messages from the app's account.
 
 ## Tech Stack
 
@@ -25,99 +41,3 @@ Each moderation capability lives in its own folder under `src/features` so devel
 - [Vite](https://vite.dev/): Fast build tool for the web components
 - [Hono](https://hono.dev/): Lightweight web framework for backend logic
 - [TypeScript](https://www.typescriptlang.org/): Type-safe development
-
-## Getting Started
-
-1. **Clone this template** or use it as a starting point for your mod tool
-2. **Install dependencies**:
-   ```bash
-   npm install
-   ```
-3. **Configure your app** in `devvit.json`:
-   - Update the app name
-   - Set your development subreddit
-4. **Start developing**:
-   ```bash
-   npm run dev
-   ```
-5. **Test your changes** in your development subreddit
-
-## Project Structure
-
-```text
-src/
-├── index.ts                  # Main server setup and route mounting
-├── features/
-│   ├── mop/
-│   │   ├── forms.ts          # Mop form handling logic
-│   │   ├── menu.ts           # Mop form field definitions
-│   │   └── nuke.ts           # Mop moderation operations
-│   ├── keyword-votes/
-│   │   ├── README.md
-│   │   ├── render.ts         # Sticky tally comment rendering
-│   │   ├── settings.ts       # Keyword settings parsing/validation
-│   │   ├── storage.ts        # Redis storage for tallies/comment ids
-│   │   └── triggers.ts       # Post create + comment submit handlers
-│   ├── banned-words/
-│   │   ├── README.md
-│   │   ├── matching.ts       # Word/phrase matching rules
-│   │   ├── settings.ts       # Banned words settings parsing/validation
-│   │   └── triggers.ts       # Post/comment enforcement + modmail
-│   ├── scheduler-megathread/
-│   │   ├── README.md
-│   │   ├── handlers.ts       # Scheduled/manual megathread creation logic
-│   │   ├── settings.ts       # Megathread settings parsing/validation
-│   │   └── storage.ts        # Weekly idempotency Redis keys
-│   └── flair-updater/
-│       ├── README.md
-│       ├── settings.ts       # Flair updater feature toggle access
-│       ├── storage.ts        # Redis post/comment counters
-│       └── triggers.ts       # Post/comment submission handlers
-└── routes/
-    ├── api.ts                # Public API endpoints (placeholder)
-    ├── forms.ts              # Mop form submit route handlers
-    ├── menu.ts               # Mop menu route handlers
-    ├── scheduler.ts          # Scheduler task endpoints
-    ├── settings.ts           # Install setting validation endpoints
-    └── triggers.ts           # App lifecycle/content trigger endpoints
-```
-
-## Customizing Your Mod Tool
-
-This template is designed to be easily customizable:
-
-1. **Modify existing actions**: Edit the Mop logic in `src/features/mop/`.
-2. **Add/remove isolated features**: Add a folder under `src/features/` and wire/unwire it in `src/routes/*` and `devvit.json`.
-3. **Add new menu items**: Update `devvit.json` and add handlers in `src/routes/menu.ts`.
-4. **Add API endpoints**: Extend `src/routes/api.ts` for external integrations.
-
-## Configuration Overview
-
-- **Install settings** are configured in `devvit.json` under `settings.subreddit`.
-- **Triggers** are configured in `devvit.json` and handled in `src/routes/triggers.ts`.
-- **Scheduled jobs** are configured in `devvit.json.scheduler.tasks` and handled in `src/routes/scheduler.ts`.
-- **Feature toggles** are checked inside each feature's `settings.ts`.
-
-## Commands
-
-- `npm run dev`: Starts development mode with live reload on your test subreddit
-- `npm run build`: Builds your mod tool for production
-- `npm run deploy`: Uploads a new version of your app to Reddit
-- `npm run launch`: Publishes your app for review and public use
-- `npm run login`: Authenticates your CLI with Reddit
-- `npm run type-check`: Runs TypeScript type checking, linting, and formatting
-
-## Development Notes
-
-- **Permissions**: This template requires `redis: true` and Reddit API moderator scope in `devvit.json`.
-- **User Types**: Mop menu items are restricted to `moderator`.
-- **Feature isolation**: Each feature folder is intentionally self-contained for template portability.
-
-## Deployment
-
-1. Test thoroughly in your development subreddit
-2. Run `npm run deploy` to upload your app
-3. Use `npm run launch` to submit for Reddit's app review process
-4. Once approved, users can install your mod tool from Reddit's app directory
-
-This template provides a modular starting point for building Reddit moderation tools that are easy to extend and easy to remove feature-by-feature.

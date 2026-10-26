@@ -12,6 +12,7 @@ export function buildNukeForm(title: string, targetId: string): Form {
         helpText: 'Auto-filled from the selected item.',
         required: true,
         defaultValue: targetId,
+        disabled: true
       },
       {
         // Whether to remove comments in the target scope.

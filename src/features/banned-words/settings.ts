@@ -3,7 +3,7 @@ import type {
   SettingsValidationRequest,
   SettingsValidationResponse,
 } from '@devvit/web/shared';
-import { findRemovalReason } from './triggers.js'
+import { findRemovalReason } from './triggers.js';
 
 
 export type BannedWordsSettings = {

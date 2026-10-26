@@ -19,23 +19,32 @@ export async function storeFlairRecord(postId: T3, flairRecord: FlairRecord): Pr
 	await redis.hSet(keyForFlairState(postId), {
 		flairTemplateId: flairRecord.flairTemplateId ?? '',
 		flairText: flairRecord.flairText ?? '',
-		establishedDate: String(flairRecord.establishedDate)
+		establishedDate: String(flairRecord.establishedDate),
+		// globalLock: String(flairRecord.globalLock ?? false)
 	});
+
+	console.log(`Stored FlairRecord for ${postId}`);
 }
 
-export async function getFlairRecord(postId: T3): Promise<FlairRecord> {
+export async function getFlairRecord(postId: T3): Promise<FlairRecord | null> {
 	const record = await redis.hGetAll(keyForFlairState(postId));
+
+	if (!('flairTemplateId' in record))
+		return null;
 
 	const flairRecord: FlairRecord = {
 		flairTemplateId: record['flairTemplateId'] ?? '',
-		flairText: record['flairText'] ?? ''
+		flairText: record['flairText'] ?? '',
+		establishedDate: Number(record['establishedDate']),
+		// globalLock: record['globalLock'] == 'true'
 	};
 
 	return flairRecord;
 }
 
-export async function deleteCurrentFlair(postId: T3): Promise<void> {
+export async function deleteFlairRecord(postId: T3): Promise<void> {
 	await redis.del(keyForFlairState(postId));
+	console.log(`Deleted FlairRecord for ${postId}`);
 }
 
 export async function setModLock(postId: T3, lockRecord: PostFlairManualLockRecord): Promise<void> {
@@ -50,11 +59,15 @@ export async function setModLock(postId: T3, lockRecord: PostFlairManualLockReco
 
 export async function delModLock(postId: T3): Promise<void> {
 	await redis.del(keyForManualLockRecord(postId));
-	console.log("deleted");
+
+	console.log(`Deleted ManualLockRecord for ${postId}`);
 }
 
-export async function getModLock(postId: T3): Promise<PostFlairManualLockRecord> {
+export async function getModLock(postId: T3): Promise<PostFlairManualLockRecord | null> {
 	const record = await redis.hGetAll(keyForManualLockRecord(postId));
+
+	if (!('lockState' in record))
+		return null;
 
 	const lockRecord: PostFlairManualLockRecord = {
 		lockState: 'lockState' in record ? (record['lockState'] == 'true') : null,

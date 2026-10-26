@@ -1,4 +1,5 @@
 import type { Form } from '@devvit/web/shared';
+import { getPostFlairLockSettings } from './settings.js';
 import { isT3 } from '@devvit/web/shared';
 
 import { getModLock } from './storage.js';
@@ -9,6 +10,7 @@ export async function buildPostFlairLockForm(targetId: string): Promise<Form> {
 	if (isT3(targetId)) {
 		modLockRecord = await getModLock(targetId);
 	}
+	const settings = await getPostFlairLockSettings();
 
 	return {
 		fields: [
@@ -41,7 +43,7 @@ export async function buildPostFlairLockForm(targetId: string): Promise<Form> {
 					}
 				],
 				defaultValue: [
-					`${modLockRecord?.lockState}`
+					`${modLockRecord?.lockState ?? 'null'}`
 				],
 				required: true,
 				multiSelect: false
@@ -51,7 +53,7 @@ export async function buildPostFlairLockForm(targetId: string): Promise<Form> {
 				name: 'notificationEnabled',
 				label: "Notify OP if they try to change the post flair",
 				helpText: "Only applicable if post flair lock setting is set to \"Locked\".",
-				defaultValue: modLockRecord?.lockState == true ? modLockRecord.notificationEnabled : true
+				defaultValue: modLockRecord?.lockState == true ? modLockRecord.notificationEnabled : settings.notifyOnProtectedChange
 			},
 			{
 				type: 'paragraph',

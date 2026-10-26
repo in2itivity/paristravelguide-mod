@@ -29,7 +29,14 @@
         "endpoint": "/internal/menu/create-weekly-megathread"
       },
       {
-        "label": "Manage post flair lock",
+        "label": "Check for post flair restrictions",
+        "description": "Check if this post's flair can be changed.",
+        "location": "post",
+        "forUserType": "user",
+        "endpoint": "/internal/menu/get-flair-lock"
+      },
+      {
+        "label": "Set post flair lock",
         "description": "Manage post flair locking for this post.",
         "location": "post",
         "forUserType": "moderator",
@@ -41,13 +48,6 @@
         "location": "post",
         "forUserType": "moderator",
         "endpoint": "/internal/menu/print-flair-lock"
-      },
-      {
-        "label": "Check for post flair restrictions",
-        "description": "Check if this post's flair can be changed.",
-        "location": "post",
-        "forUserType": "user",
-        "endpoint": "/internal/menu/get-flair-lock"
       },
       {
         "label": "Post as bot",
@@ -93,6 +93,16 @@
         "label": "Automated removal reason",
         "helpText": "Title of removal reason to add when removing content. Leave blank to skip adding a removal reason.",
         "validationEndpoint": "/internal/settings/validate-removal-reason"
+      },
+      "messageDelivery": {
+        "type": "select",
+        "label": "Notification delivery method",
+        "helpText": "Delivery method for notifications issued to Redditors. If not selected, all notification messages will be suppressed.\nThis setting only affects public notifications. Outputs initiated from user-facing menu actions will always be issued as PMs.",
+        "options": [
+          {"value": "pm", "label": "Private message"},
+          {"value": "modmail", "label": "Mod mail"}
+        ],
+        "defaultValue": "pm"
       },
       "keywordVotesEnabled": {
         "type": "boolean",
@@ -175,29 +185,78 @@
         "label": "Enable event-driven flair updater",
         "defaultValue": false
       },
-      "postFlairLock_protectedFlairs": {
-        "type": "paragraph",
-        "label": "Post flair lock: Protected flairs",
-        "helpText": "Enter a list of post flair template UUIDs, separated by line breaks.",
-        "validationEndpoint": "/internal/settings/validate-post-flair-lock-protected-UUID-list"
+      "postFlairLock": {
+        "type": "group",
+        "label": "Post flair locking",
+        "helpText": "These settings are for the post flair locking system.",
+        "fields": {
+					"postFlairLock_enableProtectedFlairs": {
+            "type": "boolean",
+            "label": "Enable protected flairs",
+            "helpText": "If disabled, manually-set flair locks will still operate.",
+						"defaultValue": true
+          },
+          "postFlairLock_protectedFlairList": {
+            "type": "paragraph",
+            "label": "Protected flairs",
+            "helpText": "Enter a list of post flair template UUIDs, separated by line breaks.",
+            "validationEndpoint": "/internal/settings/validate-post-flair-lock-protected-UUID-list"
+          },
+          "postFlairLock_protectedEmptyFlair": {
+            "type": "boolean",
+            "label": "Protect empty flair",
+            "helpText": "Whether to consider no flair as protected.",
+            "defaultValue": false
+          },
+          "postFlairLock_notifyOnProtectedChange": {
+            "type": "boolean",
+            "label": "Send notifications when attempting to change from a protected flair",
+            "helpText": "Turn off to make flair reversions for protected flairs operate silently, with no notification.",
+            "defaultValue": true
+          },
+          "postFlairLock_sendGraceWarning": {
+            "type": "boolean",
+            "label": "Send grace period notifications",
+            "helpText": "Turn off to make grace periods operate silently, with no notification.",
+            "defaultValue": true
+          },
+          "postFlairLock_graceMinutes": {
+            "type": "number",
+            "label": "Grace period length (min)",
+            "helpText": "Length of grace period when changing to a protected post flair. Supports decimal values.",
+            "defaultValue": 30
+          },
+          "postFlairLock_messageCooldown": {
+            "type": "number",
+            "label": "Message cooldown (min)",
+            "defaultValue": 5,
+            "helpText": "Number of minutes to not send duplicate messages. Supports decimal values."
+          }
+        }
       },
-      "postFlairLock_protectedEmptyFlair": {
-        "type": "boolean",
-        "label": "Post flair lock: Protect empty flair",
-        "helpText": "Whether to consider no flair as protected."
-      },
-      "postFlairLock_graceMinutes": {
-        "type": "number",
-        "label": "Post flair lock: Grace period length (min)",
-        "helpText": "Length of grace period when changing to a protected post flair. Supports decimal values.",
-        "defaultValue": 30
-      },
-      "postFlairLock_messageCooldown": {
-        "type": "number",
-        "label": "Post flair lock: Message cooldown (min)",
-        "defaultValue": 5,
-        "helpText": "Number of minutes to not send duplicate messages. Supports decimal values."
-      }
+			"userFlairSystem": {
+				"type": "group",
+				"label": "User flair",
+				"helpText": "Settings for user flair system.",
+				"fields": {
+					"flairLabels": {
+						"type": "paragraph",
+						"label": "User flair labels",
+						"helpText": "Enter a list of user flair tempalate IDs. These will appear in the user flair selection menu."
+					},
+					"upgradeThresholds": {
+						"type": "string",
+						"label": "Upgrade thresholds",
+						"helpText": "Enter a list of space-separated numbers in ascending order. This setting defines the number of upgrade levels and the amount of karma that must be earned for each level."
+					},
+					"upgradeSymbol": {
+						"type": "string",
+						"label": "Upgrade symbol",
+						"helpText": "Enter text that will be repeated once for each level of user flair ugprades.",
+						"defaultValue": ":redditgold:"
+					}
+				}
+			}
     }
   },
   "scripts": {
